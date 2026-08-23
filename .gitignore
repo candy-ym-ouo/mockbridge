@@ -1,0 +1,14 @@
+# Build and coverage outputs
+/bin/
+/coverage.out
+
+# Runtime data
+/data/
+*.db
+*.db-shm
+*.db-wal
+
+# Local/editor files
+.DS_Store
+.idea/
+.vscode/
