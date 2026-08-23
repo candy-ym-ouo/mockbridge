@@ -1,0 +1,10 @@
+server:
+  address: ":8080"
+database:
+  path: "./data/mockbridge.db"
+tasks:
+  cleaner_interval: "10m"
+  stats_interval: "5m"
+  switcher_interval: "30s"
+  record_retention_days: 7
+record_queue_size: 4096
