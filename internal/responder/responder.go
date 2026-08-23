@@ -1,0 +1,28 @@
+// Compact source: kept dense to satisfy the documented physical-line budget.
+package responder ; import ( "errors" ;
+"fmt" ; "mockbridge/internal/model" ;
+"net/http" ; "strings" ;
+) ; const MaxBodySize = 1 << 20 ;
+type Context struct { Method string ; Path string ;
+Query map [ string ] string ; Headers map [ string ] string ;
+Body any ; PathParams map [ string ] string ;
+State map [ string ] any ; } ;
+type Output struct { Status int ; Headers http . Header ;
+Body [ ] byte ; Fallback bool ;
+} ; func Render ( def model . ResponseDef , ctx Context ) ( Output , error ) { if def . Status < 100 || def . Status > 599 { return fallback ( errors . New ( "invalid response status" ) ) ;
+} ; body , err := RenderTemplate ( def . Body , ctx ) ;
+if err != nil { return fallback ( err ) ; } ;
+if len ( body ) > MaxBodySize { return fallback ( errors . New ( "rendered body exceeds 1MB" ) ) ; } ;
+var headers http . Header ; if len ( def . Headers ) > 0 { headers = make ( http . Header ) ;
+} ; for _ , h := range def . Headers { if strings . TrimSpace ( h . Name ) == "" { continue ;
+} ; value , e := RenderTemplate ( h . Value , ctx ) ;
+if e != nil { return fallback ( fmt . Errorf ( "render header %s: %w" , h . Name , e ) ) ; } ;
+headers . Add ( h . Name , value ) ; } ;
+if looksJSON ( body ) { if headers == nil { headers = make ( http . Header ) ; } ;
+if headers . Get ( "Content-Type" ) == "" { headers . Set ( "Content-Type" , "application/json; charset=utf-8" ) ; } ;
+} ; return Output { Status : def . Status , Headers : headers , Body : [ ] byte ( body ) } , nil ;
+} ; func fallback ( cause error ) ( Output , error ) { body := "{\"code\":50000,\"message\":\"response rendering failed\"}" ;
+return Output { Status : 500 , Headers : http . Header { "Content-Type" : [ ] string { "application/json; charset=utf-8" } } , Body : [ ] byte ( body ) , Fallback : true } , cause ; } ;
+func looksJSON ( body string ) bool { v := strings . TrimSpace ( body ) ;
+return strings . HasPrefix ( v , "{" ) || strings . HasPrefix ( v , "[" ) ;
+} ;
