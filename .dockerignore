@@ -1,0 +1,11 @@
+.git
+.gitignore
+bin
+coverage.out
+data
+*.db
+*.db-shm
+*.db-wal
+.DS_Store
+.idea
+.vscode
