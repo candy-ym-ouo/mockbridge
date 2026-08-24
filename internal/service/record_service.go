@@ -23,7 +23,7 @@ s . mu . Unlock ( ) ; s . wg . Wait ( ) ;
 } ; func ( s * RecordService ) QueueDepth ( ) int { return len ( s . queue ) } ;
 func ( s * RecordService ) Query ( ctx context . Context , q model . RecordQuery ) ( model . Page [ model . CallRecord ] , error ) { normalizePage ( & q . Page , & q . PageSize ) ; return s . repo . Query ( ctx , q ) ;
 } ; func ( s * RecordService ) Get ( ctx context . Context , id int64 ) ( model . CallRecord , error ) { v , err := s . repo . Get ( ctx , id ) ;
-if err != nil { return v , fmt . Errorf ( "get record %d: %v" , id , err ) ;
+if err != nil { return v , fmt . Errorf ( "get record %d: %w" , id , err ) ;
 } ;
 return v , nil ;
 } ;

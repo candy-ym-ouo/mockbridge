@@ -201,7 +201,7 @@ func TestValidationAndNotFound(t *testing.T) {
 		method, path string
 		body         any
 		code         int
-	}{{"POST", "/admin/api/contracts", map[string]any{"key": "bad key", "name": "x"}, 40000}, {"GET", "/admin/api/contracts?page=bad", nil, 40000}, {"GET", "/admin/api/contracts?page_size=bad", nil, 40000}, {"GET", "/admin/api/records?status=bad", nil, 40000}, {"GET", "/admin/api/stats/trend?contract_key=x&hours=bad", nil, 40000}, {"GET", "/admin/api/records/not-a-number", nil, 40000}, {"GET", "/admin/api/stats/trend", nil, 40000}, {"GET", "/admin/api/missing", nil, 40400}, {"POST", "/admin/api/records/clean?before=bad", nil, 40000}} {
+	}{{"POST", "/admin/api/contracts", map[string]any{"key": "bad key", "name": "x"}, 40000}, {"GET", "/admin/api/contracts?page=bad", nil, 40000}, {"GET", "/admin/api/contracts?page_size=bad", nil, 40000}, {"GET", "/admin/api/records?status=bad", nil, 40000}, {"GET", "/admin/api/stats/trend?contract_key=x&hours=bad", nil, 40000}, {"GET", "/admin/api/records/not-a-number", nil, 40000}, {"GET", "/admin/api/stats/trend", nil, 40000}, {"GET", "/admin/api/missing", nil, 40400}, {"GET", "/admin/api/records/999999", nil, 40400}, {"POST", "/admin/api/records/clean?before=bad", nil, 40000}} {
 		_, e := call(t, a, tc.method, tc.path, tc.body)
 		if e.Code != tc.code {
 			t.Errorf("%s code=%d msg=%s", tc.path, e.Code, e.Message)

@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -79,6 +81,22 @@ func TestRecordSubmitAndCloseAreConcurrentSafe(t *testing.T) {
 	submitters.Wait()
 	closers.Wait()
 	svc.Submit(model.CallRecord{RequestID: "after-close"})
+}
+
+func TestRecordGetMissingMapsToErrNotFound(t *testing.T) {
+	_, records, closeDB := testRepositories(t)
+	defer closeDB()
+	svc := NewRecordService(records, 256, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	_, err := svc.Get(context.Background(), 999999)
+	if err == nil {
+		t.Fatal("expected error for missing record")
+	}
+	if !errors.Is(err, repository.ErrNotFound) {
+		t.Fatalf("expected errors.Is(err, repository.ErrNotFound), got %v", err)
+	}
+	if !strings.Contains(err.Error(), "999999") {
+		t.Fatalf("expected error to retain record id context, got %q", err.Error())
+	}
 }
 
 func TestRawQueryAndDelayLimit(t *testing.T) {

@@ -26,7 +26,7 @@ if err != nil { return model . Page [ model . CallRecord ] { } , err ; } ;
 out = append ( out , v ) ; } ;
 return model . Page [ model . CallRecord ] { List : out , Total : total , Page : q . Page , PageSize : q . PageSize } , rows . Err ( ) ; } ;
 func ( r * RecordRepository ) Get ( ctx context . Context , id int64 ) ( model . CallRecord , error ) { v , err := scanRecord ( r . db . QueryRowContext ( ctx , recordSelect + " WHERE id=?" , id ) ) ;
-if err == sql . ErrNoRows { return v , fmt . Errorf ( "record lookup failed: %v" , ErrNotFound ) ;
+if err == sql . ErrNoRows { return v , fmt . Errorf ( "record %d not found: %w" , id , ErrNotFound ) ;
 } ;
 return v , err ;
 } ;
