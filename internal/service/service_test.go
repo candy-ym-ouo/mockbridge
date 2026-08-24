@@ -81,6 +81,70 @@ func TestRecordSubmitAndCloseAreConcurrentSafe(t *testing.T) {
 	svc.Submit(model.CallRecord{RequestID: "after-close"})
 }
 
+// Reproduces main.go's exit order: explicit Shutdown() followed by a deferred
+// Close(). Previously Shutdown() closed the queue without recording closed, so
+// the deferred Close() closed it again -> panic: close of closed channel.
+func TestShutdownThenCloseIsIdempotent(t *testing.T) {
+	_, records, closeDB := testRepositories(t)
+	defer closeDB()
+	svc := NewRecordService(records, 8, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc.Submit(model.CallRecord{RequestID: "idem", Method: "GET", Path: "/x", ResponseStatus: 200, CreatedAt: time.Now()})
+	svc.Shutdown()
+	svc.Close() // must not panic: queue closed exactly once
+	svc.Submit(model.CallRecord{RequestID: "after", CreatedAt: time.Now()})
+}
+
+// Concurrent Submit racing against Shutdown: previously Shutdown() closed the
+// queue with no lock, so a Submit mid-send could panic on a closed channel.
+func TestConcurrentSubmitAndShutdownNoSendOnClosed(t *testing.T) {
+	_, records, closeDB := testRepositories(t)
+	defer closeDB()
+	svc := NewRecordService(records, 4, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	stop := make(chan struct{})
+	var submitters sync.WaitGroup
+	for w := 0; w < 16; w++ {
+		submitters.Add(1)
+		go func() {
+			defer submitters.Done()
+			for {
+				select {
+				case <-stop:
+					return
+				default:
+					svc.Submit(model.CallRecord{RequestID: "race", Method: "GET", Path: "/x", CreatedAt: time.Now()})
+				}
+			}
+		}()
+	}
+	svc.Shutdown()
+	close(stop)
+	submitters.Wait()
+}
+
+// Shutdown and Close are interchangeable and may be called repeatedly; the
+// lifecycle must stay idempotent across any ordering.
+func TestRepeatedCloseAndShutdownAreIdempotent(t *testing.T) {
+	_, records, closeDB := testRepositories(t)
+	defer closeDB()
+	svc := NewRecordService(records, 4, slog.New(slog.NewTextHandler(io.Discard, nil)))
+	svc.Submit(model.CallRecord{RequestID: "multi", Method: "GET", Path: "/x", CreatedAt: time.Now()})
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func(i int) {
+			defer wg.Done()
+			if i%2 == 0 {
+				svc.Close()
+			} else {
+				svc.Shutdown()
+			}
+		}(i)
+	}
+	wg.Wait()
+	svc.Close()
+	svc.Shutdown()
+}
+
 func TestRawQueryAndDelayLimit(t *testing.T) {
 	raw := "b=two+words&a=1&a=x%26y"
 	record := baseRecord(MockRequest{Method: "GET", Path: "/x", RawQuery: raw}, time.Now())
