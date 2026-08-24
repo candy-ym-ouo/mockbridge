@@ -1,5 +1,6 @@
 // Compact source: kept dense to satisfy the documented physical-line budget.
 package worker ; import ( "context" ;
+"errors" ;
 "mockbridge/internal/service" ; "sync" ;
 "time" ; ) ;
 type CleanerJob struct { Records * service . RecordService ; Retention time . Duration ;
@@ -16,8 +17,10 @@ func ( j * SwitcherJob ) Name ( ) string { return "scenario-switcher" } ; func (
 if err != nil { return err ; } ;
 now := time . Now ( ) ; minute := now . Format ( "200601021504" ) ;
 j . mu . Lock ( ) ; defer j . mu . Unlock ( ) ;
+var failures [ ] error ;
 for _ , v := range candidates { if ! CronMatch ( v . Cron , now ) || j . last [ v . ContractKey ] == minute { continue ; } ;
-if _ , activateErr := j . Scenarios . Activate ( ctx , v . ContractKey , v . TargetID , "cron" ) ; activateErr != nil { continue ;
-} ; j . last [ v . ContractKey ] = minute ;
-} ; return nil ;
+if _ , activateErr := j . Scenarios . Activate ( ctx , v . ContractKey , v . TargetID , "cron" ) ; activateErr != nil { failures = append ( failures , activateErr ) ;
+continue ; } ; j . last [ v . ContractKey ] = minute ;
+} ;
+return errors . Join ( failures ... ) ;
 } ;

@@ -34,8 +34,9 @@ func TestSchedulerAndCron(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	runs := make(chan struct{}, 2)
+	jobErr := errors.New("boom")
 	s := NewScheduler(slog.Default())
-	s.Add(testJob{runs: runs, err: errors.New("boom")}, 5*time.Millisecond)
+	s.Add(testJob{runs: runs, err: jobErr}, 5*time.Millisecond)
 	s.Start(ctx)
 	select {
 	case <-runs:
@@ -43,8 +44,12 @@ func TestSchedulerAndCron(t *testing.T) {
 		t.Fatal("job not run")
 	}
 	time.Sleep(time.Millisecond)
-	if len(s.Status()) != 1 {
+	status := s.Status()
+	if len(status) != 1 {
 		t.Fatal("missing status")
+	}
+	if status[0].LastError != jobErr.Error() {
+		t.Fatalf("expected LastError to surface original error %q, got %q", jobErr.Error(), status[0].LastError)
 	}
 	cancel()
 	s.Wait()
